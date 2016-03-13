@@ -24,7 +24,8 @@ shell提示：正在读取软件包列表... 完成
 
 ## 安装Mesa
 
-##编译opengl  *.c 文件
-	gcc *.c -L{包位置} -l{所需包} -L{包位置} -l{所需包}
-example：  gcc bounce.c -L/usr/local/lib -lGLU -lGL  -lm -lglut
+# 编译自己的例子
+```
+gcc 1.c -o mydemo `pkg-config --cflags --libs freeglut` -L/usr/local/lib/ -lm -lX11 -lXrandr -lXi -lXxf86vm -lGL -lGLEW
+```
 
