@@ -9,7 +9,7 @@ sudo apt-get install libdrm2 libgles1-mesa libudev1 libxft-dev x11proto-dri2-dev
 ```
 - libdrm相关的依赖库，很多都是2.4.64版本的，但是最新的mesa需要2.4.66版本的，但是很多Linux机中由于安装源的原因无法更新到最新版本，所以这个要自己下载最新版
 - 下载最新的glew 和 glu包来编译安装，如果没有安装glew是无法编译安装glu的，glu在官网的ftp中可以下载
-- 安装GLUT
+- 可以按下面安装GLUT但是不推荐
 '''
 sudo apt-get install libglut-dev
 注意在这一步的时候，可能会出现以下情况：
@@ -21,9 +21,15 @@ shell提示：正在读取软件包列表... 完成
 　　　　　　　　　命令改成sudo apt-get install freeglut3-dev就行拉，
 设定编译参数与编译
 '''
+下一个freeglut的包，然后编译安装，因为个人实例中需要freeglut是要在pkg中，所以自己编译安装更好，如果没有在pkg中，可以手动吧freeglut.pc拷贝到/usr/local/lib/pkg-config中
 
 ## 安装Mesa
 
+```
+  ./configure
+  make
+  sudo make install
+```
 # 编译自己的例子
 ```
 gcc 1.c -o mydemo `pkg-config --cflags --libs freeglut` -L/usr/local/lib/ -lm -lX11 -lXrandr -lXi -lXxf86vm -lGL -lGLEW
