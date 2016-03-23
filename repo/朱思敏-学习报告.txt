@@ -1,0 +1,7 @@
+#####2016-3-17
+####安装mesa
+安装好mesa，解决无限登陆问题
+####学习openGL
+了解openGL，运行openGL的小demo
+####了解cmake的基本语法
+练习cmake的基本例子
