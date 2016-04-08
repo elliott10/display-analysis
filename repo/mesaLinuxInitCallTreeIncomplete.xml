@@ -1,0 +1,47 @@
+<!-- 设置contex与buffer -->
+<Function name="GLboolean XMesaMakeCurrent2 " note="绑定buffer到context">
+    <Function name="_mesa_make_current">
+        <Function name="_glapi_set_dispatch" params="(struct _glapi_table *dispatch)" note="gl api 到mesa api 映射？猜测 ">
+            <Function name="u_current_set_table" note="设置全局或每线程调度表指针">
+            </Function>
+        </Function>
+        <Function name="_mesa_reference_framebuffer" params="(&newCtx->WinSysDrawBuffer, drawBuffer)"
+                  note="context 指向绘图buffer">
+        </Function>
+        <Function name="_mesa_reference_framebuffer" params="(&newCtx->WinSysReadBuffer, readBuffer)"
+                  note="context 指向 读buffer">
+        </Function>
+        <Function name="_mesa_reference_framebuffer" params="(&newCtx->DrawBuffer, drawBuffer)"
+                  note="context 指向绘图buffer">
+        </Function>
+        <Function name="_mesa_reference_framebuffer" params="(&newCtx->ReadBuffer, readBuffer)"
+                  note="context 指向 读buffer">
+        </Function>
+        <Function name="_mesa_update_draw_buffers">
+            <Function name="_mesa_drawbuffers" note="为context设置GL_DRAW_BUFFER和帧缓存"></Function>
+        </Function>
+        <Function name="_mesa_check_init_viewport" note="验证与设置所有坐标空间">
+            <Function name="_mesa_set_viewport">
+                <Function name="set_viewport_no_notify" note="依据id设置坐标数组">
+                </Function>
+            </Function>
+            <Function name="_mesa_set_scissor">
+                <Function name="set_scissor_no_notify" note="依据id设置裁剪面数组">
+                </Function>
+            </Function>
+        </Function>
+    </Function>
+</Function>
+        <!-- 绘图 -->
+        <!-- 设置相关参数 -->
+        <!-- 执行过程是这样的，如果是首次被调用，则会通过ctx->Driver来调用BeginVertices(即vbo_exec_api.c里第750行处的vbo_exec_BeginVertices)，然后在tnl模块的Swapped处记录交交换的函数地址，从而将vbo_exec_Begin换至当前ctx->Exec处的对应glBegin函数指针位置处，然后调用 -->
+<Function name=" vbo_exec_Begin" alias="glBegin" params="( GLenum mode )" file="vbo_exec_api">
+<Function name="_mesa_update_state" params="( struct gl_context *ctx )">
+    <Function name="_mesa_update_state_locked" params="( struct gl_context *ctx )"></Function>
+</Function>
+<Call object="ctx" function="Exec" params="(mode)"></Call>
+<Function name="vbo_draw_method" params="(vbo_context(ctx), DRAW_BEGIN_END);"></Function>
+</Function>
+
+        <!-- gperf perf ftrace  -->
+
