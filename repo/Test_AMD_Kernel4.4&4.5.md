@@ -12,7 +12,7 @@
    
    - ####  kernel 4.5  basic 1280*720模式 ， 结果![](http://i4.piimg.com/ed1dbf6de1d20675.png)
   
-   - ####  kernel 4.5  custom 1440*800模式 ， 结果![](http://i4.piimg.com/ece1f511b5494c1d.png)
+   - ####  kernel 4.5  custom 1440*900模式 ， 结果![](http://i4.piimg.com/ece1f511b5494c1d.png)
   
   
 ## 分析
