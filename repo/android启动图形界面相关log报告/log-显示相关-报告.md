@@ -1,4 +1,4 @@
-## [dmesg](./dmesg.md) 
+## [dmesg](./dmesg.txt) 
 - 应该是vga设置
 
 ```sh
@@ -8,7 +8,7 @@
 <6>[    0.062743] vgaarb: bridge control possible 0000:00:02.0
 ```
 
-## [logcat](./logcat.md)
+## [logcat](./logcat.txt)
 [logcat](./logcat.md)
 ###display初始化相关
 ####SurfaceFlinger开始初始化
