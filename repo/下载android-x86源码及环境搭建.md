@@ -62,7 +62,7 @@ $ repo init -u git://192.168.0.185/lollipop-x86/manifest.git -b lollipop-x86
 ```
 
  ##注意 ：
- 修改 .repo/manifest.xml 中网址将gitscm.sf.net/gitroot/android-x86/替换成git//:192.168.0.185/lollipop-x86/
+ 修改 .repo/manifest.xml 中网址将gitscm.sf.net/gitroot/android-x86/替换成git://192.168.0.185/lollipop-x86/
  
  然后执行
 
