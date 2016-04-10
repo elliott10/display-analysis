@@ -1,4 +1,4 @@
-# Android系统在启动的过程中，
+﻿# Android系统在启动的过程中，
 最多可以出现三个画面
 - 第一个开机画面是在内核启动的过程中出现的，它是一个静态的画面。在默认情况下，这个画面是不会出现的，除非我们在编译内核的时候，
 - 第二个开机画面是在init进程启动的过程中出现的，它也是一个静态的画面。
@@ -18,7 +18,7 @@ System_init.cpp[frameworks\base\cmds\system_server\library]的system_init函数�
 有一个可执行文件surfaceflinger，由framework/base/cmds/surfaceflinger编译产生，目录下的主要文件main_surfaceflinger.cpp里面就一个main函数：以上两者都会调用SurfaceFlinger.cpp文件的instantiate函数
 
 - 启动surfaceflinger后：
-surfaceflinger构造函数调用readyToRun函数, 该函数定义了线程循环前需要初始化的内容。
+ 1、 surfaceflinger构造函数调用readyToRun函数, 该函数定义了线程循环前需要初始化的内容。
 readyToRun()调用过程： 
 （1）执行new DisplayHardware(this,dpy)，通过DisplayHardware初始化Framebuffer、EGL并获取OpenGL ES信息。 
 （2）创建共享的内存控制块。 
@@ -26,15 +26,25 @@ readyToRun()调用过程：
 （4）初始化共享内存控制块。 
 （5）初始化OpenGL ES。 
 （6）显示开机动画。
+ 
+- 相关的函数及位置：
+ DisplayHardware.cpp[frameworks\base\libs\surfaceflinger\displayhardware]
+
+ gralloc.cpp [hardware\libhardware\modules\gralloc]
+
+ gralloc.h[hardware\libhardware\include\hardware]
+ 
+
 
 
 
  
-- /andriod-x86/device/generic/common/init.sh   的分析
+###  /andriod-x86/device/generic/common/init.sh   的分析
      
-  和显示相关的代码主要有两部分
+ -  和显示相关的代码主要有两部分
   
- 1、表示初始化
+
+1、表示初始化
 
  
 ```sh
@@ -58,7 +68,8 @@ function do_init()
 }
   ```
  
-2、  帧缓冲的初始化
+  
+   2、  帧缓冲的初始化
 ```sh
 function init_hal_gralloc()
 {
