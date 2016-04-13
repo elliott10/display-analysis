@@ -1,0 +1,471 @@
+From cce3a956db45bbbed63a53b83331d81d512c5f1c Mon Sep 17 00:00:00 2001
+From: Paulo Sergio Travaglia <pstglia@gmail.com>
+Date: Tue, 21 Apr 2015 22:01:17 -0300
+Subject: [PATCH] Enable R600 support on Android-x86 (mesa/gallium radeonsi)
+
+Gallium driver radeonsi requires LLVM. Some required features
+(like compiling the R600 Taget itself) are not enabled.
+
+These changes enable these features and fix a problem
+with "intrinsic" related sources (apparently a typo
+when formating a parameter)
+---
+ Android.mk                              |  7 +++
+ lib/ExecutionEngine/Android.mk          |  6 ++-
+ lib/ExecutionEngine/JIT/Android.mk      |  6 ++-
+ lib/Target/R600/Android.mk              | 89 +++++++++++++++++++++++++++++++++
+ lib/Target/R600/InstPrinter/Android.mk  | 54 ++++++++++++++++++++
+ lib/Target/R600/MCTargetDesc/Android.mk | 59 ++++++++++++++++++++++
+ lib/Target/R600/TargetInfo/Android.mk   | 63 +++++++++++++++++++++++
+ lib/Transforms/Scalar/Android.mk        |  3 +-
+ lib/Transforms/Utils/Android.mk         |  3 +-
+ llvm-tblgen-rules.mk                    |  9 +++-
+ llvm.mk                                 |  2 +-
+ shared_llvm.mk                          | 13 ++++-
+ 12 files changed, 305 insertions(+), 9 deletions(-)
+ create mode 100644 lib/Target/R600/Android.mk
+ create mode 100644 lib/Target/R600/InstPrinter/Android.mk
+ create mode 100644 lib/Target/R600/MCTargetDesc/Android.mk
+ create mode 100644 lib/Target/R600/TargetInfo/Android.mk
+
+diff --git a/Android.mk b/Android.mk
+index 75dd2a0..5869f6c 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -80,6 +80,13 @@ subdirs += \
+   lib/Target/X86/TargetInfo \
+   lib/Target/X86/Utils
+ 
++# R600 Code Generation Libraries
++subdirs += \
++  lib/Target/R600 \
++  lib/Target/R600/InstPrinter \
++  lib/Target/R600/MCTargetDesc \
++  lib/Target/R600/TargetInfo
++
+ # LLVM Command Line Tools
+ subdirs += \
+   tools/bugpoint \
+diff --git a/lib/ExecutionEngine/Android.mk b/lib/ExecutionEngine/Android.mk
+index 9f1befd..10ef965 100644
+--- a/lib/ExecutionEngine/Android.mk
++++ b/lib/ExecutionEngine/Android.mk
+@@ -14,5 +14,7 @@ LOCAL_MODULE:= libLLVMExecutionEngine
+ 
+ LOCAL_MODULE_TAGS := optional
+ 
+-include $(LLVM_HOST_BUILD_MK)
+-include $(BUILD_HOST_STATIC_LIBRARY)
++include $(LLVM_DEVICE_BUILD_MK)
++include $(LLVM_GEN_INTRINSICS_MK)
++include $(BUILD_STATIC_LIBRARY)
++
+diff --git a/lib/ExecutionEngine/JIT/Android.mk b/lib/ExecutionEngine/JIT/Android.mk
+index 0466ba0..54fff9e 100644
+--- a/lib/ExecutionEngine/JIT/Android.mk
++++ b/lib/ExecutionEngine/JIT/Android.mk
+@@ -13,5 +13,7 @@ LOCAL_MODULE:= libLLVMJIT
+ 
+ LOCAL_MODULE_TAGS := optional
+ 
+-include $(LLVM_HOST_BUILD_MK)
+-include $(BUILD_HOST_STATIC_LIBRARY)
++include $(LLVM_DEVICE_BUILD_MK)
++include $(LLVM_GEN_INTRINSICS_MK)
++include $(BUILD_STATIC_LIBRARY)
++
+diff --git a/lib/Target/R600/Android.mk b/lib/Target/R600/Android.mk
+new file mode 100644
+index 0000000..79cfa3d
+--- /dev/null
++++ b/lib/Target/R600/Android.mk
+@@ -0,0 +1,89 @@
++LOCAL_PATH := $(call my-dir)
++
++AMDGPU_codegen_TBLGEN_TABLES := \
++	AMDGPUGenRegisterInfo.inc \
++	AMDGPUGenInstrInfo.inc \
++	AMDGPUGenDAGISel.inc  \
++	AMDGPUGenSubtargetInfo.inc \
++	AMDGPUGenMCCodeEmitter.inc \
++	AMDGPUGenCallingConv.inc \
++	AMDGPUGenIntrinsics.inc \
++	AMDGPUGenDFAPacketizer.inc \
++	AMDGPUGenAsmWriter.inc
++
++AMDGPU_codegen_SRC_FILES := \
++	AMDILCFGStructurizer.cpp \
++	AMDGPUAsmPrinter.cpp \
++	AMDGPUFrameLowering.cpp \
++	AMDGPUIntrinsicInfo.cpp \
++	AMDGPUISelDAGToDAG.cpp \
++	AMDGPUMCInstLower.cpp \
++	AMDGPUMachineFunction.cpp \
++	AMDGPUSubtarget.cpp \
++	AMDGPUTargetMachine.cpp \
++	AMDGPUTargetTransformInfo.cpp \
++	AMDGPUISelLowering.cpp \
++	AMDGPUInstrInfo.cpp \
++	AMDGPUPromoteAlloca.cpp \
++	AMDGPURegisterInfo.cpp \
++	R600ClauseMergePass.cpp \
++	R600ControlFlowFinalizer.cpp \
++	R600EmitClauseMarkers.cpp \
++	R600ExpandSpecialInstrs.cpp \
++	R600InstrInfo.cpp \
++	R600ISelLowering.cpp \
++	R600MachineFunctionInfo.cpp \
++	R600MachineScheduler.cpp \
++	R600OptimizeVectorRegisters.cpp \
++	R600Packetizer.cpp \
++	R600RegisterInfo.cpp \
++	R600TextureIntrinsicsReplacer.cpp \
++	SIAnnotateControlFlow.cpp \
++	SIFixSGPRCopies.cpp \
++	SIFixSGPRLiveRanges.cpp \
++	SIInsertWaits.cpp \
++	SIInstrInfo.cpp \
++	SIISelLowering.cpp \
++	SILowerControlFlow.cpp \
++	SILowerI1Copies.cpp \
++	SIMachineFunctionInfo.cpp \
++	SIRegisterInfo.cpp \
++	SITypeRewriter.cpp
++
++# For the host
++# =====================================================
++include $(CLEAR_VARS)
++include $(CLEAR_TBLGEN_VARS)
++
++TBLGEN_TABLES := $(AMDGPU_codegen_TBLGEN_TABLES)
++
++LOCAL_SRC_FILES := $(AMDGPU_codegen_SRC_FILES)
++
++LOCAL_MODULE:= libLLVMR600CodeGen
++
++LOCAL_MODULE_TAGS := optional
++
++include $(LLVM_HOST_BUILD_MK)
++include $(LLVM_TBLGEN_RULES_MK)
++include $(LLVM_GEN_INTRINSICS_MK)
++include $(BUILD_HOST_STATIC_LIBRARY)
++
++# For the device only
++# =====================================================
++ifneq (true,$(DISABLE_LLVM_DEVICE_BUILDS))
++include $(CLEAR_VARS)
++include $(CLEAR_TBLGEN_VARS)
++
++TBLGEN_TABLES := $(AMDGPU_codegen_TBLGEN_TABLES)
++
++LOCAL_SRC_FILES := $(AMDGPU_codegen_SRC_FILES)
++
++LOCAL_MODULE:= libLLVMR600CodeGen
++
++LOCAL_MODULE_TAGS := optional
++
++include $(LLVM_DEVICE_BUILD_MK)
++include $(LLVM_TBLGEN_RULES_MK)
++include $(LLVM_GEN_INTRINSICS_MK)
++include $(BUILD_STATIC_LIBRARY)
++endif
+diff --git a/lib/Target/R600/InstPrinter/Android.mk b/lib/Target/R600/InstPrinter/Android.mk
+new file mode 100644
+index 0000000..9afb4f7
+--- /dev/null
++++ b/lib/Target/R600/InstPrinter/Android.mk
+@@ -0,0 +1,54 @@
++LOCAL_PATH := $(call my-dir)
++
++AMDGPU_instprinter_TBLGEN_TABLES := \
++  AMDGPUGenAsmWriter.inc \
++  AMDGPUGenInstrInfo.inc \
++  AMDGPUGenRegisterInfo.inc \
++  AMDGPUGenSubtargetInfo.inc
++
++AMDGPU_instprinter_SRC_FILES := \
++  AMDGPUInstPrinter.cpp
++
++# For the device
++# =====================================================
++ifneq (true,$(DISABLE_LLVM_DEVICE_BUILDS))
++include $(CLEAR_VARS)
++include $(CLEAR_TBLGEN_VARS)
++
++TBLGEN_TABLES := $(AMDGPU_instprinter_TBLGEN_TABLES)
++
++TBLGEN_TD_DIR := $(LOCAL_PATH)/..
++
++LOCAL_SRC_FILES := $(AMDGPU_instprinter_SRC_FILES)
++
++LOCAL_C_INCLUDES += $(LOCAL_PATH)/..
++
++LOCAL_MODULE:= libLLVMR600AsmPrinter
++
++LOCAL_MODULE_TAGS := optional
++
++include $(LLVM_DEVICE_BUILD_MK)
++include $(LLVM_TBLGEN_RULES_MK)
++include $(BUILD_STATIC_LIBRARY)
++endif
++
++# For the host
++# =====================================================
++include $(CLEAR_VARS)
++include $(CLEAR_TBLGEN_VARS)
++
++TBLGEN_TABLES := $(AMDGPU_instprinter_TBLGEN_TABLES)
++
++TBLGEN_TD_DIR := $(LOCAL_PATH)/..
++
++LOCAL_SRC_FILES := $(AMDGPU_instprinter_SRC_FILES)
++
++LOCAL_C_INCLUDES += $(LOCAL_PATH)/..
++
++LOCAL_MODULE := libLLVMR600AsmPrinter
++
++LOCAL_MODULE_TAGS := optional
++
++include $(LLVM_HOST_BUILD_MK)
++include $(LLVM_TBLGEN_RULES_MK)
++include $(BUILD_HOST_STATIC_LIBRARY)
+diff --git a/lib/Target/R600/MCTargetDesc/Android.mk b/lib/Target/R600/MCTargetDesc/Android.mk
+new file mode 100644
+index 0000000..b44b224
+--- /dev/null
++++ b/lib/Target/R600/MCTargetDesc/Android.mk
+@@ -0,0 +1,59 @@
++LOCAL_PATH := $(call my-dir)
++
++AMDGPU_mc_desc_TBLGEN_TABLES := \
++  AMDGPUGenRegisterInfo.inc \
++  AMDGPUGenInstrInfo.inc \
++  AMDGPUGenSubtargetInfo.inc
++
++AMDGPU_mc_desc_SRC_FILES := \
++  AMDGPUAsmBackend.cpp \
++  AMDGPUELFObjectWriter.cpp \
++  AMDGPUMCCodeEmitter.cpp \
++  AMDGPUMCTargetDesc.cpp \
++  AMDGPUMCAsmInfo.cpp \
++  R600MCCodeEmitter.cpp \
++  SIMCCodeEmitter.cpp
++
++# For the host
++# =====================================================
++include $(CLEAR_VARS)
++include $(CLEAR_TBLGEN_VARS)
++
++LOCAL_MODULE:= libLLVMR600Desc
++LOCAL_MODULE_TAGS := optional
++LOCAL_MODULE_CLASS := STATIC_LIBRARIES
++
++LOCAL_SRC_FILES := $(AMDGPU_mc_desc_SRC_FILES)
++intermediates := $(call local-intermediates-dir)
++LOCAL_C_INCLUDES := $(LOCAL_PATH)/.. \
++		$(intermediates)/../libLLVMR600CodeGen_intermediates/
++TBLGEN_TABLES := $(AMDGPU_mc_desc_TBLGEN_TABLES)
++TBLGEN_TD_DIR := $(LOCAL_PATH)/..
++
++include $(LLVM_HOST_BUILD_MK)
++include $(LLVM_TBLGEN_RULES_MK)
++include $(LLVM_GEN_INTRINSICS_MK)
++include $(BUILD_HOST_STATIC_LIBRARY)
++
++# For the device only
++# =====================================================
++ifneq (true,$(DISABLE_LLVM_DEVICE_BUILDS))
++include $(CLEAR_VARS)
++include $(CLEAR_TBLGEN_VARS)
++
++LOCAL_MODULE:= libLLVMR600Desc
++LOCAL_MODULE_TAGS := optional
++LOCAL_MODULE_CLASS := STATIC_LIBRARIES
++
++LOCAL_SRC_FILES := $(AMDGPU_mc_desc_SRC_FILES)
++intermediates := $(call local-intermediates-dir)
++LOCAL_C_INCLUDES := $(LOCAL_PATH)/.. \
++		$(intermediates)/../libLLVMR600CodeGen_intermediates/
++TBLGEN_TABLES := $(AMDGPU_mc_desc_TBLGEN_TABLES)
++TBLGEN_TD_DIR := $(LOCAL_PATH)/..
++
++include $(LLVM_DEVICE_BUILD_MK)
++include $(LLVM_TBLGEN_RULES_MK)
++include $(LLVM_GEN_INTRINSICS_MK)
++include $(BUILD_STATIC_LIBRARY)
++endif
+diff --git a/lib/Target/R600/TargetInfo/Android.mk b/lib/Target/R600/TargetInfo/Android.mk
+new file mode 100644
+index 0000000..1d2f5df
+--- /dev/null
++++ b/lib/Target/R600/TargetInfo/Android.mk
+@@ -0,0 +1,63 @@
++LOCAL_PATH := $(call my-dir)
++
++AMDGPU_target_info_TBLGEN_TABLES := \
++  AMDGPUGenRegisterInfo.inc \
++  AMDGPUGenSubtargetInfo.inc \
++  AMDGPUGenInstrInfo.inc
++
++AMDGPU_target_info_SRC_FILES := \
++  AMDGPUTargetInfo.cpp
++
++# For the host
++# =====================================================
++include $(CLEAR_VARS)
++include $(CLEAR_TBLGEN_VARS)
++
++TBLGEN_TABLES := $(AMDGPU_target_info_TBLGEN_TABLES)
++
++TBLGEN_TD_DIR := $(LOCAL_PATH)/..
++
++LOCAL_SRC_FILES := $(AMDGPU_target_info_SRC_FILES)
++
++LOCAL_MODULE:= libLLVMR600Info
++
++LOCAL_MODULE_TAGS := optional
++
++LOCAL_MODULE_CLASS := STATIC_LIBRARIES
++
++intermediates := $(call local-intermediates-dir)
++LOCAL_C_INCLUDES +=     \
++	$(LOCAL_PATH)/.. \
++	$(intermediates)/../libLLVMR600CodeGen_intermediates
++
++include $(LLVM_HOST_BUILD_MK)
++include $(LLVM_TBLGEN_RULES_MK)
++include $(BUILD_HOST_STATIC_LIBRARY)
++
++# For the device
++# =====================================================
++ifneq (true,$(DISABLE_LLVM_DEVICE_BUILDS))
++include $(CLEAR_VARS)
++include $(CLEAR_TBLGEN_VARS)
++
++TBLGEN_TABLES := $(AMDGPU_target_info_TBLGEN_TABLES)
++
++TBLGEN_TD_DIR := $(LOCAL_PATH)/..
++
++LOCAL_SRC_FILES := $(AMDGPU_target_info_SRC_FILES)
++
++LOCAL_MODULE:= libLLVMR600Info
++
++LOCAL_MODULE_TAGS := optional
++
++LOCAL_MODULE_CLASS := STATIC_LIBRARIES
++
++intermediates := $(call local-intermediates-dir)
++LOCAL_C_INCLUDES +=     \
++        $(LOCAL_PATH)/.. \
++	$(intermediates)/../libLLVMR600CodeGen_intermediates
++
++include $(LLVM_DEVICE_BUILD_MK)
++include $(LLVM_TBLGEN_RULES_MK)
++include $(BUILD_STATIC_LIBRARY)
++endif
+diff --git a/lib/Transforms/Scalar/Android.mk b/lib/Transforms/Scalar/Android.mk
+index 5e22de6..d27a88b 100644
+--- a/lib/Transforms/Scalar/Android.mk
++++ b/lib/Transforms/Scalar/Android.mk
+@@ -36,7 +36,8 @@ transforms_scalar_SRC_FILES := \
+   SimplifyCFGPass.cpp \
+   Sink.cpp \
+   StructurizeCFG.cpp \
+-  TailRecursionElimination.cpp
++  TailRecursionElimination.cpp \
++  FlattenCFGPass.cpp
+ 
+ # For the host
+ # =====================================================
+diff --git a/lib/Transforms/Utils/Android.mk b/lib/Transforms/Utils/Android.mk
+index 2390027..e2ebe53 100644
+--- a/lib/Transforms/Utils/Android.mk
++++ b/lib/Transforms/Utils/Android.mk
+@@ -35,7 +35,8 @@ transforms_utils_SRC_FILES := \
+   SimplifyLibCalls.cpp \
+   UnifyFunctionExitNodes.cpp \
+   Utils.cpp \
+-  ValueMapper.cpp
++  ValueMapper.cpp \
++  FlattenCFG.cpp
+ 
+ # For the host
+ # =====================================================
+diff --git a/llvm-tblgen-rules.mk b/llvm-tblgen-rules.mk
+index 57be1a7..cb9b8c2 100644
+--- a/llvm-tblgen-rules.mk
++++ b/llvm-tblgen-rules.mk
+@@ -192,7 +192,14 @@ ifneq ($(filter %GenIntrinsics.inc,$(tblgen_gen_tables)),)
+ $(generated_sources)/%GenIntrinsics.inc: TBLGEN_LOCAL_MODULE := $(LOCAL_MODULE)
+ $(generated_sources)/%GenIntrinsics.inc: $(tblgen_source_dir)/%.td \
+                                      $(tblgen_td_deps) | $(LLVM_TBLGEN)
+-	$(call transform-td-to-out,tgt_intrinsics)
++	$(call transform-td-to-out,tgt-intrinsic)
++endif
++
++ifneq ($(filter %GenDFAPacketizer.inc,$(tblgen_gen_tables)),)
++$(generated_sources)/%GenDFAPacketizer.inc: TBLGEN_LOCAL_MODULE := $(LOCAL_MODULE)
++$(generated_sources)/%GenDFAPacketizer.inc: $(tblgen_source_dir)/%.td \
++                                     $(tblgen_td_deps) | $(LLVM_TBLGEN)
++	$(call transform-td-to-out,dfa-packetizer)
+ endif
+ 
+ ifneq ($(findstring ARMGenDecoderTables.inc,$(tblgen_gen_tables)),)
+diff --git a/llvm.mk b/llvm.mk
+index c9d0e19..0fbb5af 100644
+--- a/llvm.mk
++++ b/llvm.mk
+@@ -8,4 +8,4 @@ LLVM_DEVICE_BUILD_MK := $(LLVM_ROOT_PATH)/llvm-device-build.mk
+ LLVM_GEN_INTRINSICS_MK := $(LLVM_ROOT_PATH)/llvm-gen-intrinsics.mk
+ LLVM_TBLGEN_RULES_MK := $(LLVM_ROOT_PATH)/llvm-tblgen-rules.mk
+ 
+-LLVM_SUPPORTED_ARCH := arm arm64 mips mips64 x86 x86_64
++LLVM_SUPPORTED_ARCH := arm arm64 mips mips64 x86 x86_64 r600
+diff --git a/shared_llvm.mk b/shared_llvm.mk
+index d244a45..a50655d 100644
+--- a/shared_llvm.mk
++++ b/shared_llvm.mk
+@@ -22,7 +22,15 @@ llvm_x86_static_libraries := \
+   libLLVMX86AsmParser \
+   libLLVMX86AsmPrinter \
+   libLLVMX86Utils \
+-  libLLVMX86Disassembler
++  libLLVMX86Disassembler \
++  libLLVMExecutionEngine \
++  libLLVMJIT
++
++llvm_r600_static_libraries := \
++  libLLVMR600CodeGen \
++  libLLVMR600Info \
++  libLLVMR600Desc \
++  libLLVMR600AsmPrinter
+ 
+ llvm_mips_static_libraries := \
+   libLLVMMipsCodeGen \
+@@ -84,6 +92,7 @@ LOCAL_WHOLE_STATIC_LIBRARIES := \
+   $(llvm_pre_static_libraries) \
+   $(llvm_arm_static_libraries) \
+   $(llvm_x86_static_libraries) \
++  $(llvm_r600_static_libraries) \
+   $(llvm_mips_static_libraries) \
+   $(llvm_aarch64_static_libraries) \
+   $(llvm_host_static_libraries) \
+@@ -118,6 +127,7 @@ LOCAL_WHOLE_STATIC_LIBRARIES := \
+ LOCAL_WHOLE_STATIC_LIBRARIES_arm += $(llvm_arm_static_libraries)
+ LOCAL_WHOLE_STATIC_LIBRARIES_x86 += $(llvm_x86_static_libraries)
+ LOCAL_WHOLE_STATIC_LIBRARIES_x86_64 += $(llvm_x86_static_libraries)
++LOCAL_WHOLE_STATIC_LIBRARIES_r600 += $(llvm_r600_static_libraries)
+ LOCAL_WHOLE_STATIC_LIBRARIES_mips += $(llvm_mips_static_libraries)
+ LOCAL_WHOLE_STATIC_LIBRARIES_mips64 += $(llvm_mips_static_libraries)
+ LOCAL_WHOLE_STATIC_LIBRARIES_arm64 += $(llvm_aarch64_static_libraries)
+@@ -126,6 +136,7 @@ LOCAL_WHOLE_STATIC_LIBRARIES_arm64 += $(llvm_arm_static_libraries)
+ ifeq ($(BUILD_ARM_FOR_X86),true)
+ LOCAL_WHOLE_STATIC_LIBRARIES_x86 += $(llvm_arm_static_libraries)
+ LOCAL_WHOLE_STATIC_LIBRARIES_x86_64 += $(llvm_arm_static_libraries)
++LOCAL_WHOLE_STATIC_LIBRARIES_R600 += $(llvm_r600_static_libraries)
+ endif
+ 
+ LOCAL_WHOLE_STATIC_LIBRARIES += $(llvm_post_static_libraries)
+-- 
+1.7.12.1
+
