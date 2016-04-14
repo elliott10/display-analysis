@@ -133,6 +133,7 @@ KEYWORD1 void KEYWORD2 NAME(Begin)(GLenum mode)
 ```
 
 ####调用一个save_Begin函数，其中调用vbo_exec_Begin
+
 ```c
 static void GLAPIENTRY
 save_Begin(GLenum mode)
@@ -170,8 +171,10 @@ save_Begin(GLenum mode)
    }
 }
 ```
+
 ####vbo_exec_Begin 主要进行ctx的设置与更新。
-```c
+
+```sh
 /**
  * Called via glBegin.
  */
@@ -241,20 +244,26 @@ static void GLAPIENTRY vbo_exec_Begin( GLenum mode )
 
 ##绘图
 ####以glVertex3f 为例
+
 > glVertex3f会被设置为一个函数并调用_save_Vertex3f
-```c
+
+```sh
 KEYWORD1 void KEYWORD2 NAME(Vertex3f)(GLfloat x, GLfloat y, GLfloat z)
 {
     (void) x; (void) y; (void) z;
    DISPATCH(Vertex3f, (x, y, z), (F, "glVertex3f(%f, %f, %f);\n", x, y, z));
 }
 ```
+
 ####当前的上下文中TAG定义如下
-```c
+
+```sh
 #define TAG(x) _save_##x
 ```
+
 ####TAG(Vertex3f) 也就是_save_Vertex3f，具体定义如下
-```c
+
+```sh
 static void GLAPIENTRY
 TAG(Vertex3f)(GLfloat x, GLfloat y, GLfloat z)
 {
@@ -262,19 +271,22 @@ TAG(Vertex3f)(GLfloat x, GLfloat y, GLfloat z)
    ATTR3F(VBO_ATTRIB_POS, x, y, z);//VBO_ATTRIB_POS定义时候为0
 }
 ```
+
 ####ATTR3F的宏定义如下
-```c
-#define ATTR3F( A, X, Y, Z )    ATTRF( A, 3, X, Y, Z, 1 )
 
-#define ATTRF( A, N, V0, V1, V2, V3 ) \
-    ATTR_UNION(A, N, GL_FLOAT, fi_type, FLOAT_AS_UNION(V0), FLOAT_AS_UNION(V1),\
-            FLOAT_AS_UNION(V2), FLOAT_AS_UNION(V3))
+```sh
+	#define ATTR3F( A, X, Y, Z )    ATTRF( A, 3, X, Y, Z, 1 )
 
-typedef union { GLfloat f; GLint i; GLuint u; } fi_type;
+	#define ATTRF( A, N, V0, V1, V2, V3 ) \
+    		ATTR_UNION(A, N, GL_FLOAT, fi_type, FLOAT_AS_UNION(V0), FLOAT_AS_UNION(V1),\
+            	FLOAT_AS_UNION(V2), FLOAT_AS_UNION(V3))
+
+	typedef union { GLfloat f; GLint i; GLuint u; } fi_type;
 ```
-####一层套一层最后在ATTR_UNION这个宏中实现数据存储。
 
-```c
+> 一层套一层最后在ATTR_UNION这个宏中实现数据存储。
+
+```sh
 #define ATTR_UNION( A, N, T, C, V0, V1, V2, V3 )                        \
 do {                  \
    struct vbo_exec_context *exec = &vbo_context(ctx)->exec;   \
