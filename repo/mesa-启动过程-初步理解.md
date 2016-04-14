@@ -131,6 +131,7 @@
 
 ####调用一个save_Begin函数，其中调用vbo_exec_Begin
 
+<<<<<<< HEAD
 	static void GLAPIENTRY
 	save_Begin(GLenum mode)
 	{
@@ -232,11 +233,122 @@
 	   }
 	}
 
+=======
+```c
+static void GLAPIENTRY
+save_Begin(GLenum mode)
+{
+   GET_CURRENT_CONTEXT(ctx);
+
+   if (!_mesa_is_valid_prim_mode(ctx, mode)) {
+      /* compile this error into the display list */
+      _mesa_compile_error(ctx, GL_INVALID_ENUM, "glBegin(mode)");
+   }
+   else if (_mesa_inside_dlist_begin_end(ctx)) {
+      /* compile this error into the display list */
+      _mesa_compile_error(ctx, GL_INVALID_OPERATION, "recursive glBegin");
+   }
+   else {
+      Node *n;
+
+      ctx->Driver.CurrentSavePrimitive = mode;
+
+      /* Give the driver an opportunity to hook in an optimized
+       * display list compiler.
+       */
+      if (ctx->Driver.NotifySaveBegin(ctx, mode))
+         return;
+
+      SAVE_FLUSH_VERTICES(ctx);
+      n = alloc_instruction(ctx, OPCODE_BEGIN, 1);
+      if (n) {
+         n[1].e = mode;
+      }
+
+      if (ctx->ExecuteFlag) {
+         CALL_Begin(ctx->Exec, (mode));#调用vbo_exec_Begin
+      }
+   }
+}
+```
+
+####vbo_exec_Begin 主要进行ctx的设置与更新。
+
+```sh
+/**
+ * Called via glBegin.
+ */
+static void GLAPIENTRY vbo_exec_Begin( GLenum mode )
+{
+   GET_CURRENT_CONTEXT( ctx ); 
+   struct vbo_exec_context *exec = &vbo_context(ctx)->exec;
+   int i;
+
+   if (_mesa_inside_begin_end(ctx)) {
+      _mesa_error(ctx, GL_INVALID_OPERATION, "glBegin");
+      return;
+   }
+
+   if (!_mesa_valid_prim_mode(ctx, mode, "glBegin")) {
+      return;
+   }
+
+   vbo_draw_method(vbo_context(ctx), DRAW_BEGIN_END);
+
+   if (ctx->NewState) {
+      _mesa_update_state( ctx );
+
+      CALL_Begin(ctx->Exec, (mode));
+      return;
+   }
+
+   if (!_mesa_valid_to_render(ctx, "glBegin")) {
+      return;
+   }
+
+   /* Heuristic: attempt to isolate attributes occurring outside
+    * begin/end pairs.
+    */
+   if (exec->vtx.vertex_size && !exec->vtx.attrsz[0])
+      vbo_exec_FlushVertices_internal(exec, GL_FALSE);
+
+   i = exec->vtx.prim_count++;
+   exec->vtx.prim[i].mode = mode;#i类似栈的形式，glbegin会被多次调用
+   exec->vtx.prim[i].begin = 1;
+   exec->vtx.prim[i].end = 0;
+   exec->vtx.prim[i].indexed = 0;
+   exec->vtx.prim[i].weak = 0;
+   exec->vtx.prim[i].pad = 0;
+   exec->vtx.prim[i].start = exec->vtx.vert_count;
+   exec->vtx.prim[i].count = 0;
+   exec->vtx.prim[i].num_instances = 1;
+   exec->vtx.prim[i].base_instance = 0;
+   exec->vtx.prim[i].is_indirect = 0;
+
+   ctx->Driver.CurrentExecPrimitive = mode;
+
+   ctx->Exec = ctx->BeginEnd;
+   /* We may have been called from a display list, in which case we should
+    * leave dlist.c's dispatch table in place.
+    */
+   if (ctx->CurrentDispatch == ctx->OutsideBeginEnd) {
+      ctx->CurrentDispatch = ctx->BeginEnd;
+      _glapi_set_dispatch(ctx->CurrentDispatch);
+   } else {
+      assert(ctx->CurrentDispatch == ctx->Save);
+   }
+}
+
+
+```
+>>>>>>> 1424bc11bc038ba151c063a2a44d5e45ffd2d7d9
 
 ##绘图
 ####以glVertex3f 为例
+
 > glVertex3f会被设置为一个函数并调用_save_Vertex3f
 
+<<<<<<< HEAD
 	KEYWORD1 void KEYWORD2 NAME(Vertex3f)(GLfloat x, GLfloat y, GLfloat z)
 	{
 	    (void) x; (void) y; (void) z;
@@ -307,6 +419,86 @@
 	   }                  \
 	} while (0)
 
+=======
+```sh
+KEYWORD1 void KEYWORD2 NAME(Vertex3f)(GLfloat x, GLfloat y, GLfloat z)
+{
+    (void) x; (void) y; (void) z;
+   DISPATCH(Vertex3f, (x, y, z), (F, "glVertex3f(%f, %f, %f);\n", x, y, z));
+}
+```
+
+####当前的上下文中TAG定义如下
+
+```sh
+#define TAG(x) _save_##x
+```
+
+####TAG(Vertex3f) 也就是_save_Vertex3f，具体定义如下
+
+```sh
+static void GLAPIENTRY
+TAG(Vertex3f)(GLfloat x, GLfloat y, GLfloat z)
+{
+   GET_CURRENT_CONTEXT(ctx);
+   ATTR3F(VBO_ATTRIB_POS, x, y, z);//VBO_ATTRIB_POS定义时候为0
+}
+```
+
+####ATTR3F的宏定义如下
+
+```sh
+	#define ATTR3F( A, X, Y, Z )    ATTRF( A, 3, X, Y, Z, 1 )
+
+	#define ATTRF( A, N, V0, V1, V2, V3 ) \
+    		ATTR_UNION(A, N, GL_FLOAT, fi_type, FLOAT_AS_UNION(V0), FLOAT_AS_UNION(V1),\
+            	FLOAT_AS_UNION(V2), FLOAT_AS_UNION(V3))
+
+	typedef union { GLfloat f; GLint i; GLuint u; } fi_type;
+```
+
+> 一层套一层最后在ATTR_UNION这个宏中实现数据存储。
+
+```sh
+#define ATTR_UNION( A, N, T, C, V0, V1, V2, V3 )                        \
+do {                  \
+   struct vbo_exec_context *exec = &vbo_context(ctx)->exec;   \
+   int sz = (sizeof(C) / sizeof(GLfloat));                              \
+   if (unlikely(!(ctx->Driver.NeedFlush & FLUSH_UPDATE_CURRENT))) \
+      ctx->Driver.BeginVertices( ctx );         \
+                                                                        \
+   if (unlikely(exec->vtx.active_sz[A] != N * sz) ||                    \
+       unlikely(exec->vtx.attrtype[A] != T))                            \
+      vbo_exec_fixup_vertex(ctx, A, N * sz, T);                         \
+                                                                        \
+   {                  \
+      C *dest = (C *)exec->vtx.attrptr[A];                              \
+      if (N>0) dest[0] = V0;            \
+      if (N>1) dest[1] = V1;            \
+      if (N>2) dest[2] = V2;            \
+      if (N>3) dest[3] = V3;            \
+      exec->vtx.attrtype[A] = T;          \
+   }                  \
+                  \
+   if ((A) == 0) {              \
+      /* This is a glVertex call */         \
+      GLuint i;               \
+                  \
+      for (i = 0; i < exec->vtx.vertex_size; i++)     \
+   exec->vtx.buffer_ptr[i] = exec->vtx.vertex[i];     \
+                  \
+      exec->vtx.buffer_ptr += exec->vtx.vertex_size;      \
+                  \
+      /* Set FLUSH_STORED_VERTICES to indicate that there's now */  \
+      /* something to draw (not just updating a color or texcoord).*/ \
+      ctx->Driver.NeedFlush |= FLUSH_STORED_VERTICES;     \
+                  \
+      if (++exec->vtx.vert_count >= exec->vtx.max_vert)     \
+   vbo_exec_vtx_wrap( exec );         \
+   }                  \
+} while (0)
+```
+>>>>>>> 1424bc11bc038ba151c063a2a44d5e45ffd2d7d9
 
 ##glEnd()
 
@@ -486,6 +678,7 @@
 >if (!s->run( ctx, s )) 这里依据下面的数组管道执行
 >可以看出是依次执行
 
+<<<<<<< HEAD
 	const struct tnl_pipeline_stage *_tnl_default_pipeline[] = {
 	   &_tnl_vertex_transform_stage,
 	   &_tnl_normal_transform_stage,
@@ -555,3 +748,77 @@
 	   END_FAST_MATH(__tmp);
 	#endif
 	}
+=======
+```c
+const struct tnl_pipeline_stage *_tnl_default_pipeline[] = {
+   &_tnl_vertex_transform_stage,
+   &_tnl_normal_transform_stage,
+   &_tnl_lighting_stage,
+   &_tnl_texgen_stage,
+   &_tnl_texture_transform_stage,
+   &_tnl_point_attenuation_stage,
+   &_tnl_vertex_program_stage, 
+   &_tnl_fog_coordinate_stage,
+   &_tnl_render_stage,
+   NULL 
+};
+```
+
+```c
+void _tnl_run_pipeline( struct gl_context *ctx )
+{
+   TNLcontext *tnl = TNL_CONTEXT(ctx);
+   unsigned short __tmp;
+   GLuint i;
+
+   if (!tnl->vb.Count)
+      return;
+
+   /* Check for changed input sizes or change in stride to/from zero
+    * (ie const or non-const).
+    */
+   if (check_input_changes( ctx ) || tnl->pipeline.new_state) {
+      if (ctx->VertexProgram._MaintainTnlProgram)
+	 _tnl_UpdateFixedFunctionProgram( ctx );
+
+      for (i = 0; i < tnl->pipeline.nr_stages ; i++) {
+	 struct tnl_pipeline_stage *s = &tnl->pipeline.stages[i];
+	 if (s->validate)
+	    s->validate( ctx, s );
+      }
+      
+      tnl->pipeline.new_state = 0;
+      tnl->pipeline.input_changes = 0;
+      
+      /* Pipeline can only change its output in response to either a
+       * statechange or an input size/stride change.  No other changes
+       * are allowed.
+       */
+      if (check_output_changes( ctx ))
+	 _tnl_notify_pipeline_output_change( ctx );
+   }
+
+#ifndef _OPENMP
+   /* Don't adjust FPU precision mode in case multiple threads are to be used.
+    * This would require that the additional threads also changed the FPU mode
+    * which is quite a mess as this had to be done in all parallelized sections;
+    * otherwise the master thread and all other threads are running in different
+    * modes, producing inconsistent results.
+    * Note that all x64 implementations don't define/use START_FAST_MATH, so
+    * this is "hack" is only used in i386 mode
+    */
+   START_FAST_MATH(__tmp);
+#endif
+
+   for (i = 0; i < tnl->pipeline.nr_stages ; i++) {
+      struct tnl_pipeline_stage *s = &tnl->pipeline.stages[i];//核心	
+      if (!s->run( ctx, s ))//执行核心
+	 break;
+   }
+
+#ifndef _OPENMP
+   END_FAST_MATH(__tmp);
+#endif
+}
+```
+>>>>>>> 1424bc11bc038ba151c063a2a44d5e45ffd2d7d9
