@@ -1,3 +1,6 @@
+###参照
+- [1][mesa源码分析](http://www.cnblogs.com/zale_lzj/archive/2010/11/29/1889424.html)
+
 ##xwindow部分
 
 >对于glut使用的是XMesaMakeCurrent2与mesa实现ctx[struct gl_context]的同步

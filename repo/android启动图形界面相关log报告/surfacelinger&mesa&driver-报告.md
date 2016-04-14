@@ -1,6 +1,13 @@
-###surfcarelinger main函数
+####参照
+- [1][ SurfaceFlinger启动过程分析](http://blog.chinaunix.net/uid-29043620-id-4859377.html)
+
+###surfacelinger
+> surfacelinger中维护mEGLContext,mEGLDisplay。通过mEGLContext能实现与mesa的同步，这个变量也是mesa维护的一个全局变量，mesa绘图操作会使用读写缓存。
+> mEGLDisplay中包含了驱动信息与链接，egl平台（这里就是android平台）。
+###surfcacelinger main函数
 > main 函数中flinger->init()函数初始化了egl，display，driver，eglcontext等等
-```c
+
+```sh
 //Main_surfacelinger.cpp
 int main(int, char**) {
     // When SF is launched in its own process, limit the number of
@@ -32,10 +39,12 @@ int main(int, char**) {
     return 0;
 }
 ```
+
 ###SurfaceFlinger::init函数
 
 
 > eglInitialize(mEGLDisplay, NULL, NULL);初始化为Display设置对应驱动
+
 ```c
 //SurfaceFlinger.h SurfaceFlinger.c
 void SurfaceFlinger::init() {
@@ -66,6 +75,7 @@ void SurfaceFlinger::init() {
     startBootAnim();
 }
 ```
+
 ###surfacelinger 初始化函数中会调用eglGetDisplay并返回一个display[_EGLDisplay* 变量]
 > 这个函数会先获取系统EGL的平台
 
