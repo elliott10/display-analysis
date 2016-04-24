@@ -1,7 +1,0 @@
-这个app粗略实现：
-可以旋转，亮度调节和读取基本硬件信息
-使用的是android studio 工具开发的，可以直接导入工程
-GpuInfo 获取GPU信息
-ChangeOrientationService 功能是改变方向的类
-有更好的想法，直接改
-
