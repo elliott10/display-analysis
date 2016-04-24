@@ -1,11 +1,10 @@
 #### 参照
 - [1][ SurfaceFlinger启动过程分析](http://blog.chinaunix.net/uid-29043620-id-4859377.html)
 
-<<<<<<< HEAD
-### surfacelinger
-=======
+
+
 ###surfaceFlinger
->>>>>>> a677db62b8e00b0812dd3ba8b0c64e1f4bb0423f
+
 > surfacelinger中维护mEGLContext,mEGLDisplay。通过mEGLContext能实现与mesa的同步，这个变量也是mesa维护的一个全局变量，mesa绘图操作会使用读写缓存。
 > mEGLDisplay中包含了驱动信息与链接，egl平台（这里就是android平台）。
 ###surfcacelinger main函数
