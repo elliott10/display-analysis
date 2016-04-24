@@ -1,5 +1,7 @@
 # 配置环境下载multiwindow
+
 - 请看 [android-x86 代码托管服务器]这个文档
+
 # 编译multiwindow
 - 运行以下命令
 ```
@@ -8,6 +10,7 @@ lunch android_x86_64-eng
 make -j10 iso_img
 ```
 就会在out目录中生成iso文件
+
 # 运行
 ## 真机运行
 - 一种方式可以直接使用dd命令写入到U盘中运行，但是要在docker中添加一个库，这个后期补充
