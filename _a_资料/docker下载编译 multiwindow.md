@@ -1,5 +1,5 @@
 # 配置环境下载multiwindow
-- 请看 [android-x86 代码托管服务器] 这个文档
+- 请看 [android-x86 代码托管服务器]这个文档
 # 编译multiwindow
 - 运行以下命令
 ```
