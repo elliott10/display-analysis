@@ -13,7 +13,18 @@ make -j10 iso_img
 
 # 运行
 ## 真机运行
-- 一种方式可以直接使用dd命令写入到U盘中运行，但是要在docker中添加一个库，这个后期补充
+- 一种方式可以直接使用dd命令写入到U盘中运行，但是要在docker中添加一个工具,名字是syslinux,运行的命令
+
+第一步,在sudo权限下运行以下命令，查看U盘的挂载盘，比如/dev/sdc
+```
+fdisk -l
+```
+
+第二步，在sudo权限下运行以下命令，来刻盘
+```
+dd if=INPUTFILE of=OUTPUTPOSITION
+```
+
 - 另一种方式使用uefi的模式运行，使用工具 rufus
 
 ## 虚拟机运行
